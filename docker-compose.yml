@@ -29,6 +29,20 @@ services:
               find /data -type f -name 'dump.rdb' -mtime +5 -delete;
               sleep 86400; 
             done"
+  consumer:
+    build:
+      context: ./src/consumer
+    container_name: consumer
+    environment:
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
+      - CONSUMER_RATE_LIMIT_PER_MINUTE=${CONSUMER_RATE_LIMIT_PER_MINUTE}
+    depends_on:
+      - rabbitmq
+      - redis
 
   queue-api:
     build:
@@ -39,7 +53,7 @@ services:
     environment:
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
-      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
       - RABBITMQ_PORT=${RABBITMQ_PORT}
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
@@ -48,6 +62,7 @@ services:
     depends_on:
       - rabbitmq
       - redis
+
 
 volumes:
   redis-data:

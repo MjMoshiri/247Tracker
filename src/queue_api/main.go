@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -127,8 +128,12 @@ func main() {
 
 	r.POST("/submit", func(c *gin.Context) {
 		var request struct {
-			Key     string `json:"key" binding:"required"`
-			Message string `json:"message" binding:"required"`
+			ID          string `json:"id" binding:"required"`
+			Company     string `json:"company" binding:"required"`
+			Description string `json:"description" binding:"required"`
+			Link        string `json:"link" binding:"required"`
+			Title       string `json:"title" binding:"required"`
+			Date        string `json:"date" binding:"required"`
 		}
 
 		if err := c.ShouldBindJSON(&request); err != nil {
@@ -136,8 +141,15 @@ func main() {
 			return
 		}
 
+		message, err := json.Marshal(request)
+		if err != nil {
+			logger.Errorf("JSON marshal error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "JSON marshal error"})
+			return
+		}
+
 		ctx := context.Background()
-		err := redisClient.Set(ctx, request.Key, request.Message, 0).Err()
+		err = redisClient.Set(ctx, request.ID, message, 0).Err()
 		if err != nil {
 			logger.Errorf("Redis error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Redis error"})
@@ -150,8 +162,8 @@ func main() {
 			false,
 			false,
 			amqp.Publishing{
-				ContentType: "text/plain",
-				Body:        []byte(request.Message),
+				ContentType: "application/json",
+				Body:        message,
 			},
 		)
 		if err != nil {
