@@ -16,7 +16,7 @@ services:
       - "${REDIS_PORT}:6379"
     volumes:
       - redis-data:/data
-    command: redis-server --save 60 1 --save 300 10 --save 900 100
+    command: redis-server --save 60 1
     restart: always
 
   cleanup:
@@ -29,6 +29,25 @@ services:
               find /data -type f -name 'dump.rdb' -mtime +5 -delete;
               sleep 86400; 
             done"
+
+  queue-api:
+    build:
+      context: ./src/queue_api
+    container_name: queue-api
+    ports:
+      - "${QUEUE_API_PORT}:${QUEUE_API_PORT}"
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
+      - QUEUE_API_PORT=${QUEUE_API_PORT}
+    depends_on:
+      - rabbitmq
+      - redis
 
 volumes:
   redis-data:
