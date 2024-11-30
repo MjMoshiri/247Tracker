@@ -28,7 +28,6 @@ def process_job(job):
     logger.info(f"Description: {job['description']}")
     logger.info(f"Link: {job['link']}")
     logger.info(f"Title: {job['title']}")
-    logger.info(f"Date: {job['date']}")
     logger.info("-" * 40)
 
 

@@ -7,7 +7,7 @@ load_dotenv()
 
 API_BASE_URL = "http://localhost:" + str(os.getenv('QUEUE_API_PORT'))
 
-def check_item_in_queue(key):
+def not_cached(key):
     url = f"{API_BASE_URL}/check"
     params = {'key': key}
     response = requests.get(url, params=params)
