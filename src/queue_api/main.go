@@ -133,7 +133,6 @@ func main() {
 			Description string `json:"description" binding:"required"`
 			Link        string `json:"link" binding:"required"`
 			Title       string `json:"title" binding:"required"`
-			Date        string `json:"date" binding:"required"`
 		}
 
 		if err := c.ShouldBindJSON(&request); err != nil {
