@@ -1,2 +1,6 @@
 ratelimit
 pika
+boto3
+botocore
+openai
+pydantic
