@@ -1,85 +1,67 @@
 import asyncio
-import heapq
+
 import time
+import logging
 from selenium_driverless import webdriver
-from src.producer.crawlers.apple import get_job_links as get_apple_job_links
-from src.producer.crawlers.microsoft import get_job_links as get_microsoft_job_links
+from src.producer.crawlers.apple import get_job_links as apple
+from src.producer.crawlers.microsoft import get_job_links as microsoft
 import random
+from dotenv import load_dotenv
+import os
 
-class PriorityQueue:
-    def __init__(self):
-        self.queue = []
-        self.counter = 0
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-    def put(self, priority, item):
-        heapq.heappush(self.queue, (priority, self.counter, item))
-        self.counter += 1
-
-    def get(self):
-        return heapq.heappop(self.queue)[2]
-
-    def empty(self):
-        return len(self.queue) == 0
-
-    def peek_priority(self):
-        if not self.empty():
-            return self.queue[0][0]
-        return None
+load_dotenv()
 
 
-async def run_crawler(crawler, queue, interval_range):
-    try:
-        await crawler()
-    except Exception as e:
-        print(f"Task {crawler.__name__} failed with error: {e}")
-    finally:
-        next_run = time.time() + random.randint(*interval_range)
-        queue.put(next_run, crawler)
+async def run_crawler(crawler, queue: asyncio.Queue, semaphore, interval_range):
+    async with semaphore:
+        try:
+            async with webdriver.Chrome() as driver:
+                result = await crawler(driver)
+                logger.info(f"Task {crawler.__name__} returned: {result}")
+        except Exception as e:
+            logger.error(f"Task {crawler.__name__} failed with error: {e}")
+        finally:
+            next_run = time.time() + random.randint(*interval_range)
+            await queue.put((next_run, crawler))
 
-async def schedule_crawlers(queue, semaphore, interval_range=(60, 100)):
+
+async def schedule_crawlers(
+    queue: asyncio.Queue, semaphore, interval_range=(60, 80)
+):
     while True:
         if not queue.empty():
-            next_run = queue.peek_priority()
+            next_run, crawler = await queue.get()
             now = time.time()
             if next_run <= now:
-                crawler = queue.get()
-                await semaphore.acquire()
                 asyncio.create_task(
-                    handle_crawler(crawler, queue, semaphore, interval_range)
+                    run_crawler(crawler, queue, semaphore, interval_range)
                 )
             else:
-                sleep_time = min(next_run - now, 1) 
+                await queue.put((next_run, crawler))
+                sleep_time = min(next_run - now, 1)
                 await asyncio.sleep(sleep_time)
         else:
-
             await asyncio.sleep(1)
 
-async def handle_crawler(crawler, queue, semaphore, interval_range):
-    try:
-        await run_crawler(crawler, queue, interval_range)
-    finally:
-        semaphore.release()
 
-async def autopilot(crawlers, num_instances=5, interval_range=(60, 100)):
-    queue = PriorityQueue()
+async def autopilot(crawlers, num_instances=5, interval_range=(60, 80)):
+    queue = asyncio.Queue()
     current_time = time.time()
     for crawler in crawlers:
-        queue.put(current_time, crawler)
+        await queue.put((current_time, crawler))
 
     semaphore = asyncio.Semaphore(num_instances)
     await schedule_crawlers(queue, semaphore, interval_range)
 
-async def apple_crawler():
-    async with webdriver.Chrome() as driver:
-        await get_apple_job_links(driver)
-
-async def microsoft_crawler():
-    async with webdriver.Chrome() as driver:
-        await get_microsoft_job_links(driver)
 
 async def main():
-    crawlers = [apple_crawler, microsoft_crawler] 
-    await autopilot(crawlers)
+    crawlers = [apple, microsoft]
+    num_instances = int(os.getenv("PRODUCER_CONCURRENT_DRIVERS", 5))
+    await autopilot(crawlers, num_instances)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

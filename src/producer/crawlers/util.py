@@ -2,6 +2,7 @@ import requests
 import json
 from dotenv import load_dotenv
 import os
+import asyncio
 
 load_dotenv()
 
@@ -18,3 +19,14 @@ def send_job_to_queue(job):
     headers = {'Content-Type': 'application/json'}
     response = requests.post(url, headers=headers, data=json.dumps(job))
     return response.status_code
+
+async def try_attempts(coroutine, delay =0.1, max_attempts=2, exception = None):
+    for attempt in range(max_attempts):
+        try:
+            return await coroutine()
+        except:
+            if attempt == max_attempts - 1:
+                if exception:
+                    raise exception
+                return None
+            await asyncio.sleep(delay)
