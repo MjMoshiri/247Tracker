@@ -9,7 +9,8 @@ const dynamoDb = new DynamoDB.DocumentClient({
 });
 
 const TABLE_NAME = process.env.REACT_APP_DYNAMODB_TABLE_NAME!!;
-const UNPROCESSED_JOBS_INDEX = process.env.REACT_APP_UNPROCESSED_JOBS_INDEX;
+const UNPROCESSED_JOBS_INDEX = process.env.REACT_APP_UNPROCESSED_JOBS_INDEX!!;
+
 
 export const fetchJobs = async (page: number, pageSize: number): Promise<JobAd[]> => {
     try {

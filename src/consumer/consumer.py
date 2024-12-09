@@ -21,7 +21,7 @@ RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT"))
 RABBITMQ_USER = os.getenv("RABBITMQ_USER")
 RABBITMQ_PASS = os.getenv("RABBITMQ_PASS")
 RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE")
-SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL")
+SNS_TOPIC_ARN = os.getenv("SNS_TOPIC_ARN")
 DYNAMODB_TABLE_NAME = os.getenv("DYNAMODB_TABLE_NAME")
 AWS_REGION = os.getenv("AWS_REGION")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -35,12 +35,12 @@ RETRY_DELAY = 2
 
 # Clients
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
-sqs_client = boto3.client("sqs", region_name=AWS_REGION)
+sns_client = boto3.client("sns", region_name=AWS_REGION)
 dynamodb_client = boto3.client("dynamodb", region_name=AWS_REGION)
 
 # Queues with max size 1000
 openai_queue = queue.Queue(maxsize=QUEUE_MAX_SIZE)
-sqs_queue = queue.Queue(maxsize=QUEUE_MAX_SIZE)
+sns_queue = queue.Queue(maxsize=QUEUE_MAX_SIZE)
 dynamodb_queue = queue.Queue(maxsize=QUEUE_MAX_SIZE)
 
 # User data and models
@@ -89,9 +89,9 @@ def openai_worker():
             evaluation = response.choices[0].message.parsed
             job["evaluation"] = evaluation.dict()
             if evaluation.is_qualified:
-                sqs_queue.put(job)
+                sns_queue.put(job)
                 dynamodb_queue.put(job)
-                logger.info(f'Job ID: {job["id"]} added to SQS and DynamoDB queues.')
+                logger.info(f'Job ID: {job["id"]} added to SNS and DynamoDB queues.')
             else:
                 logger.info(
                     f'Job ID: {job["id"]} is not qualified. Reason: {evaluation.reasoning}'
@@ -104,20 +104,20 @@ def openai_worker():
             openai_queue.task_done()
 
 
-def sqs_worker():
+def sns_worker():
     while True:
-        job = sqs_queue.get()
+        job = sns_queue.get()
         if job is None:
             break
         try:
-            sqs_client.send_message(QueueUrl=SQS_QUEUE_URL, MessageBody=json.dumps(job))
-            logger.info(f'Job ID: {job["id"]} sent to SQS.')
+            sns_client.publish(TopicArn=SNS_TOPIC_ARN, Message=json.dumps(job))
+            logger.info(f'Job ID: {job["id"]} sent to SNS.')
         except Exception as e:
-            logger.error(f'Failed to send job ID {job["id"]} to SQS: {e}')
+            logger.error(f'Failed to send job ID {job["id"]} to SNS: {e}')
             time.sleep(RETRY_DELAY)
-            sqs_queue.put(job)
+            sns_queue.put(job)
         finally:
-            sqs_queue.task_done()
+            sns_queue.task_done()
 
 
 def dynamodb_worker():
@@ -190,10 +190,10 @@ def main():
     channel.basic_consume(queue=RABBITMQ_QUEUE, on_message_callback=callback)
 
     openai_thread = threading.Thread(target=openai_worker)
-    sqs_thread = threading.Thread(target=sqs_worker)
+    sns_thread = threading.Thread(target=sns_worker)
     dynamodb_thread = threading.Thread(target=dynamodb_worker)
 
-    for t in [openai_thread, sqs_thread, dynamodb_thread]:
+    for t in [openai_thread, sns_thread, dynamodb_thread]:
         t.daemon = True
         t.start()
 
@@ -203,9 +203,9 @@ def main():
         pass
     finally:
         openai_queue.put(None)
-        sqs_queue.put(None)
+        sns_queue.put(None)
         dynamodb_queue.put(None)
-        for q in [openai_queue, sqs_queue, dynamodb_queue]:
+        for q in [openai_queue, sns_queue, dynamodb_queue]:
             q.join()
         connection.close()
 
