@@ -53,7 +53,6 @@ The qualification criteria are as follows:
 - A PhD is not required.
 - The role is not a management position or senior position. Which means no Senior, Director, Manager, Staff, etc. in the title.
 - If a minimum experience is required, it must be less than 5 years.
-- The job must be located in California or allow for remote work.
 
 Please assess the job description carefully and ensure the reasoning covers all aspects of the criteria provided.
 """
@@ -110,7 +109,7 @@ def sns_worker():
         if job is None:
             break
         try:
-            sns_client.publish(TopicArn=SNS_TOPIC_ARN, Message=json.dumps(job))
+            sns_client.publish(TopicArn=SNS_TOPIC_ARN, Message=json.dumps(job, default=str))
             logger.info(f'Job ID: {job["id"]} sent to SNS.')
         except Exception as e:
             logger.error(f'Failed to send job ID {job["id"]} to SNS: {e}')

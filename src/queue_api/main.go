@@ -126,6 +126,26 @@ func main() {
 		}
 	})
 
+	r.POST("/checked", func(c *gin.Context) {
+		var request struct {
+			ID string `json:"id" binding:"required"`
+		}
+
+		if err := c.ShouldBindJSON(&request); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		ctx := context.Background()
+		err := redisClient.Set(ctx, fmt.Sprintf("%s_checked", request.ID), true, 0).Err()
+		if err != nil {
+			logger.Errorf("Redis error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Redis error"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Checked successfully"})
+	})
 	r.POST("/submit", func(c *gin.Context) {
 		var request struct {
 			ID          string `json:"id" binding:"required"`
