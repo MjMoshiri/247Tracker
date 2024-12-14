@@ -20,7 +20,11 @@ load_dotenv()
 async def run_crawler(crawler, queue: asyncio.Queue, semaphore, interval_range):
     async with semaphore:
         try:
-            async with webdriver.Chrome() as driver:
+            options = webdriver.ChromeOptions()
+            options.add_argument("--force-device-scale-factor=0.6")
+            options.add_argument("--high-dpi-support=0.6")
+            async with webdriver.Chrome(options=options) as driver:
+                await driver.minimize_window()
                 result = await crawler(driver)
                 logger.info(f"Task {crawler.__name__} returned: {result}")
         except Exception as e:
