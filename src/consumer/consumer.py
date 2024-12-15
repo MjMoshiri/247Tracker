@@ -55,7 +55,8 @@ The qualification criteria are as follows:
 - If a minimum experience is required, it must be less than 5 years.
 - If there is a date in the job posting, it should not be more than a week ago from today. Today is : {datetime.datetime.now().strftime('%B %d, %Y')}.
 
-Please assess the job description carefully and ensure the reasoning covers all aspects of the criteria provided.
+Please assess the job description carefully and ensure the reasoning covers all aspects of the criteria provided. Keep in mind that the job description may not contain all the information needed to make a decision. Therefore, You are safe to ignore any criteria that are not present in the job description.
+
 """
 
 
