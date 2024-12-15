@@ -44,7 +44,7 @@ sns_queue = queue.Queue(maxsize=QUEUE_MAX_SIZE)
 dynamodb_queue = queue.Queue(maxsize=QUEUE_MAX_SIZE)
 
 # User data and models
-user_data = """
+user_data = f"""
 You will be given a job description. Review the job description and return a JSON object with two keys:
 1. 'reasoning': A string providing a detailed explanation of why the job is or is not qualified based on the given conditions.
 2. 'is_qualified': A boolean indicating if the job is qualified.
@@ -53,6 +53,7 @@ The qualification criteria are as follows:
 - A PhD is not required.
 - The role is not a management position or senior position. Which means no Senior, Director, Manager, Staff, etc. in the title.
 - If a minimum experience is required, it must be less than 5 years.
+- If there is a date in the job posting, it should not be more than a week ago from today. Today is : {datetime.datetime.now().strftime('%B %d, %Y')}.
 
 Please assess the job description carefully and ensure the reasoning covers all aspects of the criteria provided.
 """
