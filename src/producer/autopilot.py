@@ -27,7 +27,7 @@ async def run_crawler(crawler, interval_range, queue: asyncio.Queue, semaphore):
             async with webdriver.Chrome(options=options) as driver:
                 await driver.minimize_window()
                 result = await crawler(driver)
-                logger.info(f"Task {crawler.__name__} returned: {result}")
+                logger.info(f"{crawler.__module__.split('.')[-1].capitalize()} returned: {result} at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}")
         except Exception as e:
             logger.error(f"Task {crawler.__name__} failed with error: {e}")
         finally:
