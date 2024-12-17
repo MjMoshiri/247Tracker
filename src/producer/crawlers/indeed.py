@@ -49,22 +49,6 @@ async def get_job_links(driver: webdriver.Chrome):
             if company.lower() in company_blacklist:
                 add_to_cache(job_id)
                 continue
-            clickable = await job_element.find_element(By.CSS_SELECTOR, "a[data-jk]")
-            await clickable.click()
-            description_container = await try_attempts(
-                lambda: driver.find_element(By.ID, "jobDescriptionText"),
-                0.5,
-                10,
-                Exception("Description container not found"),
-            )
-            elements = await description_container.find_elements(By.XPATH, ".//*")
-            texts = []
-            for elem in elements:
-                if not await elem.find_elements(By.XPATH, "./*"):
-                    text = (await elem.text).strip()
-                    if text:
-                        texts.append(text)
-            description = "\n".join(texts)
             job_title = await job_element.find_element(By.CSS_SELECTOR, ".jobTitle")
             job_title = await job_title.text
             job_title = job_title.strip()
@@ -73,11 +57,36 @@ async def get_job_links(driver: webdriver.Chrome):
                 "id": job_id,
                 "title": job_title,
                 "link": job_link,
-                "description": description,
                 "company": company,
             }
             jobs.append(job)
-            send_job_to_queue(job)
-            time.sleep(random.randint(1, 4))
+    for job in jobs:
+        await process_job(driver, job)
+    if len(jobs) > 0:
+        await driver.get(url)
+    time.sleep(3)
     await update_cookies(driver, "src/producer/crawlers/cookies/indeed.json")
     return len(jobs)
+
+
+async def process_job(driver: webdriver.Chrome, job):
+    await driver.get("https://www.indeed.com/viewjob?jk=" + job["id"].split("_")[0])
+    time.sleep(5)
+    description_container = await try_attempts(
+        lambda: driver.find_element(By.ID, "jobDescriptionText"),
+        0.5,
+        10,
+        Exception("Description container not found"),
+    )
+    elements = await description_container.find_elements(By.XPATH, ".//*")
+    texts = []
+    for elem in elements:
+        if not await elem.find_elements(By.XPATH, "./*"):
+            text = (await elem.text).strip()
+            if text:
+                texts.append(text)
+    description = "\n".join(texts)
+    job["description"] = description
+    send_job_to_queue(job)
+    time.sleep(random.randint(3, 6))
+

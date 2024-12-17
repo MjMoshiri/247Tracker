@@ -74,6 +74,6 @@ async def get_job_links(driver: webdriver.Chrome):
             }
             jobs.append(job)
             send_job_to_queue(job)
-            time.sleep(random.randint(1, 4))
+            time.sleep(random.randint(3, 6))
     await update_cookies(driver, "src/producer/crawlers/cookies/linkedin.json")
     return len(jobs)
