@@ -4,10 +4,11 @@ import time
 import logging
 from selenium_driverless import webdriver
 
-# from src.producer.crawlers.apple import get_job_links as apple
-# from src.producer.crawlers.microsoft import get_job_links as microsoft
+from src.producer.crawlers.ibm import get_job_links as ibm
+from src.producer.crawlers.oracle import get_job_links as oracle
 from src.producer.crawlers.linkedin import get_job_links as linkedin
-from src.producer.crawlers.indeed import get_job_links as indeed
+from src.producer.crawlers.microsoft import get_job_links as microsoft
+from src.producer.crawlers.apple import get_job_links as apple
 import random
 from dotenv import load_dotenv
 import os
@@ -27,7 +28,9 @@ async def run_crawler(crawler, interval_range, queue: asyncio.Queue, semaphore):
             async with webdriver.Chrome(options=options) as driver:
                 await driver.minimize_window()
                 result = await crawler(driver)
-                logger.info(f"{crawler.__module__.split('.')[-1].capitalize()} returned: {result} at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}")
+                logger.info(
+                    f"{crawler.__module__.split('.')[-1].capitalize()} returned: {result} at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}"
+                )
         except Exception as e:
             logger.error(f"Task {crawler.__name__} failed with error: {e}")
         finally:
@@ -63,7 +66,13 @@ async def autopilot(crawlers_with_intervals, num_instances=5):
 
 
 async def main():
-    crawlers_with_intervals = [(indeed, (120, 180)), (linkedin, (120, 180))]
+    crawlers_with_intervals = [
+        (oracle, (240, 300)),
+        (linkedin, (180, 240)),
+        (microsoft, (240, 300)),
+        (apple, (240, 300)),
+        (ibm, (240, 300)),
+    ]
     num_instances = int(os.getenv("PRODUCER_CONCURRENT_DRIVERS", 5))
     await autopilot(crawlers_with_intervals, num_instances)
 

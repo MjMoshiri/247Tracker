@@ -43,20 +43,35 @@ openai_queue = queue.Queue(maxsize=QUEUE_MAX_SIZE)
 sns_queue = queue.Queue(maxsize=QUEUE_MAX_SIZE)
 dynamodb_queue = queue.Queue(maxsize=QUEUE_MAX_SIZE)
 
-# User data and models
-user_data = f"""
-You will be given a job description. Review the job description and return a JSON object with two keys:
-1. 'reasoning': A string providing a detailed explanation of why the job is or is not qualified based on the given conditions.
-2. 'is_qualified': A boolean indicating if the job is qualified.
+SYSTEM_PROMPT = """You are an expert job qualification analyzer with perfect accuracy in evaluating job descriptions against specific criteria. You must always provide detailed, structured analysis and boolean decisions based on the given requirements."""
 
-The qualification criteria are as follows:
-- A PhD is not required.
-- The role is not a management position or senior position. Which means no Senior, Director, Manager, Staff, etc. in the title.
-- If a minimum experience is required, it must be less than 5 years.
-- If there is a date in the job posting, it should not be more than a week ago from today. Today is : {datetime.datetime.now().strftime('%B %d, %Y')}.
+JOB_EVALUATION_PROMPT = """
+#### Job Qualification Analysis Task
 
-Please assess the job description carefully and ensure the reasoning covers all aspects of the criteria provided. Keep in mind that the job description may not contain all the information needed to make a decision. Therefore, You are safe to ignore any criteria that are not present in the job description.
+Your task is to analyze the following job description and provide a structured evaluation in JSON format.
 
+**Required Output Format:**
+{
+    "reasoning": <detailed_analysis_string>,
+    "is_qualified": <boolean>
+}
+
+**Qualification Criteria:**
+1. PhD Requirement: Must NOT require a PhD
+2. Position Level: Must NOT be a senior/management role (exclude titles with Senior, Director, Manager, etc.)
+3. Minimum Experience: Must require LESS than 4 years if specified
+4. Posting Date: Must be within 7 days of {current_date} if date is specified
+5. Security: Must NOT require TOP SECRET clearance
+
+**Important Notes:**
+- Provide explicit reasoning for each applicable criterion
+- If a criterion cannot be evaluated due to missing information, indicate it as "not specified - assumed compliant"
+- Analysis must be comprehensive yet concise
+- Boolean decision should be false if ANY criterion fails
+
+**Job Details to Evaluate:**
+Title: {job_title}
+Description: {job_description}
 """
 
 
@@ -72,18 +87,19 @@ def openai_worker():
             break
         job_title = job["title"]
         job_description = job["description"]
-        prompt = (
-            f"{user_data}\n ## JOB INFO ## Job Title: {job_title}\n"
-            f'Job Description: "{job_description} "\n ## END OF JOB INFO ##'
+        current_date = datetime.datetime.now().strftime('%B %d, %Y')
+        
+        prompt = JOB_EVALUATION_PROMPT.format(
+            current_date=current_date,
+            job_title=job_title,
+            job_description=job_description
         )
         try:
             response = openai_client.beta.chat.completions.parse(
                 model="gpt-4o-mini",
                 messages=[
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt}
                 ],
                 response_format=JobEvaluation,
             )
@@ -111,7 +127,9 @@ def sns_worker():
         if job is None:
             break
         try:
-            sns_client.publish(TopicArn=SNS_TOPIC_ARN, Message=json.dumps(job, default=str))
+            sns_client.publish(
+                TopicArn=SNS_TOPIC_ARN, Message=json.dumps(job, default=str)
+            )
             logger.info(f'Job ID: {job["id"]} sent to SNS.')
         except Exception as e:
             logger.error(f'Failed to send job ID {job["id"]} to SNS: {e}')

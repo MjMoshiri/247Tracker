@@ -66,7 +66,7 @@ async def get_job_links(driver: webdriver.Chrome):
         await driver.get(url)
     time.sleep(3)
     await update_cookies(driver, "src/producer/crawlers/cookies/indeed.json")
-    return len(jobs)
+    return len(job_elements)
 
 
 async def process_job(driver: webdriver.Chrome, job):
@@ -89,4 +89,3 @@ async def process_job(driver: webdriver.Chrome, job):
     job["description"] = description
     send_job_to_queue(job)
     time.sleep(random.randint(3, 6))
-

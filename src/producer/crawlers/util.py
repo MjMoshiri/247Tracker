@@ -2,8 +2,9 @@ import requests
 import json
 from dotenv import load_dotenv
 import os
-import asyncio
+import time
 from selenium_driverless import webdriver
+import logging
 
 load_dotenv()
 
@@ -24,6 +25,23 @@ def add_to_cache(key):
     return response.status_code
 
 
+def setup_logger(name, log_file, level=logging.ERROR):
+    """
+    Sets up a logger with the given name and log file.
+    """
+    handler = logging.FileHandler(f"logs/{log_file}")
+    handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(message)s"))
+
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+
+    if not logger.hasHandlers():
+        logger.addHandler(handler)
+
+    return logger
+
+
 def send_job_to_queue(job):
     url = f"{API_BASE_URL}/submit"
     headers = {"Content-Type": "application/json"}
@@ -34,13 +52,15 @@ def send_job_to_queue(job):
 async def try_attempts(coroutine, delay=0.1, max_attempts=2, exception=None):
     for attempt in range(max_attempts):
         try:
-            return await coroutine()
+            element = await coroutine()
+            if element:
+                return element
         except:
             if attempt == max_attempts - 1:
                 if exception:
                     raise exception
                 return None
-            await asyncio.sleep(delay)
+            time.sleep(delay)
 
 
 async def load_cookies(driver: webdriver.Chrome, file_address: str):
