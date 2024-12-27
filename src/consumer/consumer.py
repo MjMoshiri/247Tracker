@@ -51,10 +51,10 @@ JOB_EVALUATION_PROMPT = """
 Your task is to analyze the following job description and provide a structured evaluation in JSON format.
 
 **Required Output Format:**
-{
+---
     "reasoning": <detailed_analysis_string>,
     "is_qualified": <boolean>
-}
+---
 
 **Qualification Criteria:**
 1. PhD Requirement: Must NOT require a PhD

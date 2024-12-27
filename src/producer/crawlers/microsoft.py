@@ -7,6 +7,7 @@ from src.producer.crawlers.util import (
     setup_logger,
 )
 import time
+from bs4 import BeautifulSoup
 
 
 url = "https://jobs.careers.microsoft.com/global/en/search?lc=California%2C%20United%20States&lc=Washington%2C%20United%20States&p=Software%20Engineering&rt=Individual%20Contributor&l=en_us&pg=1&pgSz=20&o=Recent&flt=true"
@@ -45,8 +46,15 @@ async def get_job_links(driver: webdriver.Chrome):
                     By.CSS_SELECTOR, 'div[aria-label^="Job item"]'
                 )
 
-                text = await job_id_element.get_attribute("outerHTML")
-                job_id = text.split("Job item ")[1].split('"')[0]
+                outer_html = await job_id_element.execute_script(
+                    "return arguments[0].outerHTML", job_id_element, timeout=10
+                )
+                soup = BeautifulSoup(outer_html, "html.parser")
+                job_id = (
+                    soup.find("div", {"aria-label": True})["aria-label"]
+                    .split("Job item ")[1]
+                    .split('"')[0]
+                )
                 job_link = f"https://jobs.careers.microsoft.com/global/en/job/{job_id}"
                 job_id = job_id + "_microsoft"
 
@@ -89,12 +97,11 @@ async def get_job_description(driver: webdriver.Chrome, job_link: str):
             Exception("Could not find qualifications element"),
         )
         parent_element = await qualifications_element.find_element(By.XPATH, "..")
-        description_elements = await parent_element.find_elements(By.XPATH, "./*")
-        description = ""
-        for element in description_elements:
-            text = await element.text
-            if text:
-                description += text + "\n"
+        outer_html = await parent_element.execute_script(
+            "return arguments[0].outerHTML", parent_element, timeout=10
+        )
+        soup = BeautifulSoup(outer_html, "html.parser")
+        description = " \n ".join(soup.stripped_strings)
         return description
     except Exception as e:
         logger.error(f"Error in get_job_description: {e}", exc_info=True)

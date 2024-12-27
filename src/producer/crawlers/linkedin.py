@@ -12,6 +12,7 @@ from src.producer.crawlers.util import (
 )
 import time
 import random
+from bs4 import BeautifulSoup
 
 
 with open("src/producer/crawlers/blocked.json", "r") as f:
@@ -37,17 +38,19 @@ async def get_job_links(driver: webdriver.Chrome):
         jobs = []
         for job_element in job_elements[:15]:
             try:
-                job_id = (
-                    (await job_element.get_attribute("outerHTML"))
-                    .split('data-occludable-job-id="')[1]
-                    .split('"')[0]
+                job_id_outer_html = await job_element.execute_script(
+                    "return arguments[0].outerHTML", job_element, timeout=10
                 )
-                job_id = job_id + "_linkedin"
-                company = await job_element.find_element(
+                job_id = job_id_outer_html.split('data-occludable-job-id="')[1].split(
+                    '"'
+                )[0]
+                job_id += "_linkedin"
+
+                company_el = await job_element.find_element(
                     By.CSS_SELECTOR, ".artdeco-entity-lockup__subtitle"
                 )
-                company = await company.text
-                company = company.split(" · ")[0].strip()
+                company = (await company_el.text).split(" · ")[0].strip()
+
                 if not_cached(job_id) == 200:
                     if company.lower() in company_blacklist:
                         add_to_cache(job_id)
@@ -61,21 +64,13 @@ async def get_job_links(driver: webdriver.Chrome):
                         10,
                         Exception("Description container not found"),
                     )
-                    elements = await description_container.find_elements(
-                        By.XPATH, ".//*"
+                    outer_html = await description_container.execute_script(
+                        "return arguments[0].outerHTML", description_container, timeout=10
                     )
-                    texts = []
-                    for elem in elements:
-                        if not await elem.find_elements(By.XPATH, "./*"):
-                            text = (await elem.text).strip()
-                            if text:
-                                texts.append(text)
-                    description = "\n".join(texts)
-                    job_title = (
-                        await (
-                            await job_element.find_element(By.TAG_NAME, "strong")
-                        ).text
-                    ).strip()
+                    soup = BeautifulSoup(outer_html, "html.parser")
+                    description = " \n ".join(soup.stripped_strings)
+                    job_title_el = await job_element.find_element(By.TAG_NAME, "strong")
+                    job_title = (await job_title_el.text).strip()
                     job_link = (
                         "https://www.linkedin.com/jobs/view/" + job_id.split("_")[0]
                     )

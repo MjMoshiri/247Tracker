@@ -59,7 +59,6 @@ async def get_job_links(driver: webdriver.Chrome):
             try:
                 job["description"] = await get_job_description(driver, job["link"])
                 send_job_to_queue(job)
-                print(job)
                 time.sleep(4)
             except Exception as e:
                 logger.error(f"Error processing IBM job: {e}", exc_info=True)
@@ -74,12 +73,14 @@ async def get_job_description(driver: webdriver.Chrome, job_link: str):
         await driver.get(job_link)
         desc_container = await try_attempts(
             lambda: driver.find_element(
-                By.CSS_SELECTOR, 'div[data-field="description"]'
+                By.CSS_SELECTOR,
+                'div[data-field="description"], .article.article--details',
             ),
             0.5,
-            20,
-            Exception("Could not find description element on IBM job page"),
+            10,
         )
+        if not desc_container:
+            return ""
         return await desc_container.text
     except Exception as e:
         logger.error(f"Error in get_job_description: {e}", exc_info=True)

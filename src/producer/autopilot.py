@@ -23,8 +23,8 @@ async def run_crawler(crawler, interval_range, queue: asyncio.Queue, semaphore):
     async with semaphore:
         try:
             options = webdriver.ChromeOptions()
-            options.add_argument("--force-device-scale-factor=0.6")
-            options.add_argument("--high-dpi-support=0.6")
+            options.add_argument("--force-device-scale-factor=0.4")
+            options.add_argument("--high-dpi-support=0.4")
             async with webdriver.Chrome(options=options) as driver:
                 await driver.minimize_window()
                 result = await crawler(driver)

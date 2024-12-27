@@ -57,31 +57,35 @@ async def get_job_links(driver: webdriver.Chrome):
 
 async def get_job_description(driver: webdriver.Chrome, job_link: str):
     await driver.get(job_link)
-    summary = await try_attempts(
+    
+    summary_element = await try_attempts(
         lambda: driver.find_element(By.ID, "jd-job-summary"),
         0.5,
         10,
     )
-    if summary:
-        summary = await summary.text
-    description = await try_attempts(
+    summary = await summary_element.text if summary_element else ""
+    
+    description_element = await try_attempts(
         lambda: driver.find_element(By.ID, "jd-description")
     )
-    if description:
-        description = await description.text
-    minimum_qualifications = await try_attempts(
+    description = await description_element.text if description_element else ""
+    
+    minimum_qualifications_elements = await try_attempts(
         lambda: driver.find_elements(By.ID, "jd-minimum-qualifications")
     )
     minimum_qualifications_text = ""
-    for item in minimum_qualifications:
-        minimum_qualifications_text += "-" + await item.text
-    preferred_qualifications = await try_attempts(
+    if minimum_qualifications_elements:
+        for item in minimum_qualifications_elements:
+            minimum_qualifications_text += "-" + await item.text
+    
+    preferred_qualifications_elements = await try_attempts(
         lambda: driver.find_elements(By.ID, "jd-preferred-qualifications"),
     )
     preferred_qualifications_text = ""
-    for item in preferred_qualifications:
-        preferred_qualifications_text += "-" + await item.text
-
+    if preferred_qualifications_elements:
+        for item in preferred_qualifications_elements:
+            preferred_qualifications_text += "-" + await item.text
+    
     if (
         not summary
         and not description
@@ -89,6 +93,7 @@ async def get_job_description(driver: webdriver.Chrome, job_link: str):
         and not preferred_qualifications_text
     ):
         raise Exception("All job description fields are None")
+    
     return (
         "SUMMARY: " + summary + "\n"
         "DESCRIPTION: " + description + "\n"
